@@ -14,6 +14,12 @@ class Treatment(BaseModel):
     preventive: list[str] = []
 
 
+class DiseaseModelStatus(BaseModel):
+    ready: bool
+    supported_crops: list[str]
+    detail: str | None = None
+
+
 class DiseaseResult(BaseModel):
     id: str
     class_key: str

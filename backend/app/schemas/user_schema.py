@@ -1,6 +1,12 @@
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
+
+
+def _check_password_byte_length(password: str) -> str:
+    if len(password.encode("utf-8")) > 72:
+        raise ValueError("Password must be at most 72 UTF-8 bytes.")
+    return password
 
 
 class UserCreate(BaseModel):
@@ -9,10 +15,14 @@ class UserCreate(BaseModel):
     password: str = Field(min_length=8, max_length=128)
     location: str | None = Field(default=None, max_length=120)
 
+    _validate_password = field_validator("password")(_check_password_byte_length)
+
 
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+    _validate_password = field_validator("password")(_check_password_byte_length)
 
 
 class UserUpdate(BaseModel):

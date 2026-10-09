@@ -4,7 +4,8 @@ import pytest
 from fastapi import HTTPException
 from PIL import Image
 
-from app.services.disease_service import build_result
+from app.services.disease_service import build_result, model_status, supported_crops, validate_selected_crop
+from app.utils import validators
 from app.utils.validators import validate_image_upload
 
 
@@ -25,6 +26,30 @@ def test_validate_rejects_bad_type_and_garbage():
     with pytest.raises(HTTPException) as e:
         validate_image_upload(b"not an image", "image/png")
     assert e.value.status_code == 400
+
+
+def test_validate_rejects_oversized_image(monkeypatch):
+    monkeypatch.setattr(validators.settings, "MAX_UPLOAD_MB", 1)
+    with pytest.raises(HTTPException) as e:
+        validate_image_upload(b"x" * (1024 * 1024 + 1), "image/png")
+    assert e.value.status_code == 413
+
+
+def test_supported_crops_come_from_model_labels():
+    assert supported_crops() == ["Apple", "Corn (maize)", "Potato", "Tomato"]
+
+
+def test_model_status_reports_readiness_and_supported_crops():
+    status = model_status()
+    assert isinstance(status["ready"], bool)
+    assert status["supported_crops"] == supported_crops()
+    assert (status["detail"] is None) is status["ready"]
+
+
+def test_unsupported_crop_is_rejected_before_prediction():
+    with pytest.raises(HTTPException) as e:
+        validate_selected_crop("Rice")
+    assert e.value.status_code == 422
 
 
 def test_build_result_merges_info_and_flags_low_confidence():

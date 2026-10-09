@@ -10,6 +10,8 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+On Windows PowerShell, use `py -3.11 -m venv .venv` and `\.venv\Scripts\Activate.ps1` instead of the Unix activation command.
+
 ## 2. Prepare data
 
 Put one folder per class in `dataset/raw/`, named like the PlantVillage dataset, for example `Tomato___Early_blight` (crop, three underscores, disease). Healthy classes end in `___healthy`.

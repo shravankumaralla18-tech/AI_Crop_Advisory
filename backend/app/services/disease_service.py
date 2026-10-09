@@ -1,3 +1,4 @@
+import json
 import sys
 import uuid
 from pathlib import Path
@@ -15,6 +16,29 @@ from app.utils.validators import validate_image_upload
 
 LOW_CONFIDENCE = 0.60
 _predictor = None
+
+
+def supported_crops() -> list[str]:
+    classes_path = Path(settings.AI_MODEL_DIR) / "models" / "class_names.json"
+    if not classes_path.exists():
+        raise HTTPException(503, "Disease model class labels are not configured.")
+    classes = json.loads(classes_path.read_text(encoding="utf-8"))
+    return sorted({parse_class_name(class_name)[0] for class_name in classes})
+
+
+def model_status() -> dict:
+    model_path = Path(settings.AI_MODEL_DIR) / "models" / "crop_disease_model.keras"
+    ready = model_path.is_file()
+    return {
+        "ready": ready,
+        "supported_crops": supported_crops(),
+        "detail": None if ready else "Trained model weights are not installed. Train the model with ai-model/training/train.py before running real predictions.",
+    }
+
+
+def validate_selected_crop(crop: str) -> None:
+    if crop not in supported_crops():
+        raise HTTPException(422, "Choose a crop supported by the configured disease model.")
 
 
 def _get_predictor():
@@ -58,13 +82,17 @@ def build_result(record: dict) -> dict:
     }
 
 
-async def detect_disease(user_id: str, content: bytes, content_type: str | None) -> dict:
+async def detect_disease(user_id: str, content: bytes, content_type: str | None, crop: str) -> dict:
     ext = validate_image_upload(content, content_type)
+    validate_selected_crop(crop)
     predictor = _get_predictor()
     try:
         prediction = await run_in_threadpool(predictor, content)
     except FileNotFoundError:
         raise HTTPException(503, "The disease model has not been trained yet. Run ai-model/training/train.py first.")
+    predicted_crop, _, _ = parse_class_name(prediction["class_name"])
+    if predicted_crop != crop:
+        raise HTTPException(422, f"The image appears to be {predicted_crop}, not {crop}. Check the selected crop and try again.")
 
     upload_dir = Path(settings.UPLOAD_DIR)
     upload_dir.mkdir(parents=True, exist_ok=True)

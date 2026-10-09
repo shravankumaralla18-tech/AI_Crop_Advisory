@@ -11,11 +11,15 @@ class PriceRow(BaseModel):
     max_price: float
     modal_price: float
     change_7d_pct: float | None = None
+    source: str
+    is_sample: bool
 
 
 class TrendPoint(BaseModel):
     date: str
     price: float
+    source: str
+    is_sample: bool
 
 
 class MarketAdvisoryOut(BaseModel):
@@ -33,3 +37,6 @@ class MarketAdvisoryOut(BaseModel):
     currency: str
     unit: str
     disclaimer: str
+    data_date: str
+    source: str
+    is_sample: bool

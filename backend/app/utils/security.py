@@ -7,13 +7,16 @@ from app.config import settings
 
 
 def hash_password(password: str) -> str:
-    # bcrypt only reads the first 72 bytes
-    return bcrypt.hashpw(password.encode()[:72], bcrypt.gensalt()).decode()
+    encoded = password.encode()
+    if len(encoded) > 72:
+        raise ValueError("Password must be at most 72 UTF-8 bytes.")
+    return bcrypt.hashpw(encoded, bcrypt.gensalt()).decode()
 
 
 def verify_password(password: str, hashed: str) -> bool:
     try:
-        return bcrypt.checkpw(password.encode()[:72], hashed.encode())
+        encoded = password.encode()
+        return len(encoded) <= 72 and bcrypt.checkpw(encoded, hashed.encode())
     except ValueError:
         return False
 

@@ -1,4 +1,5 @@
 from collections import defaultdict
+from datetime import date
 from statistics import mean
 
 from fastapi import HTTPException
@@ -23,10 +24,26 @@ def _ensure_crop(crop_id: str) -> str:
     return names[crop_id]
 
 
-def get_prices(crop_id: str | None = None, region: str | None = None) -> list[dict]:
+def get_prices(
+    crop_id: str | None = None,
+    region: str | None = None,
+    market: str | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> list[dict]:
     """Latest price per market, with the change over the previous 7 days."""
+    if start_date and end_date and start_date > end_date:
+        raise HTTPException(422, "Start date must be on or before end date.")
     names = crop_names()
-    records = [r for r in _market_data()["records"] if (not crop_id or r["crop_id"] == crop_id) and (not region or r["region"].lower() == region.lower())]
+    data = _market_data()
+    records = [
+        r for r in data["records"]
+        if (not crop_id or r["crop_id"] == crop_id)
+        and (not region or r["region"].lower() == region.lower())
+        and (not market or r["market"].lower() == market.lower())
+        and (not start_date or r["date"] >= start_date.isoformat())
+        and (not end_date or r["date"] <= end_date.isoformat())
+    ]
     if crop_id:
         _ensure_crop(crop_id)
     by_key = defaultdict(list)
@@ -38,18 +55,46 @@ def get_prices(crop_id: str | None = None, region: str | None = None) -> list[di
         latest = items[-1]
         past = items[-8] if len(items) >= 8 else None
         change = round((latest["modal_price"] - past["modal_price"]) / past["modal_price"] * 100, 1) if past else None
-        rows.append({**latest, "crop_name": names.get(cid, cid), "change_7d_pct": change})
+        rows.append({
+            **latest,
+            "crop_name": names.get(cid, cid),
+            "change_7d_pct": change,
+            "source": data.get("note", "Bundled development sample dataset"),
+            "is_sample": True,
+        })
     rows.sort(key=lambda r: (r["crop_name"], -r["modal_price"]))
     return rows
 
 
-def get_trends(crop_id: str, days: int = 30) -> list[dict]:
+def get_trends(
+    crop_id: str,
+    days: int = 30,
+    market: str | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> list[dict]:
     _ensure_crop(crop_id)
+    if start_date and end_date and start_date > end_date:
+        raise HTTPException(422, "Start date must be on or before end date.")
+    data = _market_data()
     by_date = defaultdict(list)
-    for r in _market_data()["records"]:
-        if r["crop_id"] == crop_id:
+    for r in data["records"]:
+        if (
+            r["crop_id"] == crop_id
+            and (not market or r["market"].lower() == market.lower())
+            and (not start_date or r["date"] >= start_date.isoformat())
+            and (not end_date or r["date"] <= end_date.isoformat())
+        ):
             by_date[r["date"]].append(r["modal_price"])
-    series = [{"date": d, "price": round(mean(v), 1)} for d, v in sorted(by_date.items())]
+    series = [
+        {
+            "date": d,
+            "price": round(mean(v), 1),
+            "source": data.get("note", "Bundled development sample dataset"),
+            "is_sample": True,
+        }
+        for d, v in sorted(by_date.items())
+    ]
     return series[-days:]
 
 
@@ -66,13 +111,13 @@ def get_advisory(crop_id: str) -> dict:
 
     if latest >= avg30 * 1.05:
         signal, headline = "sell", "Good time to sell"
-        reason = f"Today's price is {((latest / avg30) - 1) * 100:.1f}% above the 30-day average."
+        reason = f"The latest recorded price is {((latest / avg30) - 1) * 100:.1f}% above the 30-day average."
     elif momentum < -3 and latest >= avg30:
         signal, headline = "sell", "Sell soon, prices are slipping"
         reason = f"The 7-day average fell {abs(momentum):.1f}% against the week before, while prices are still above the 30-day average."
     elif latest <= avg30 * 0.95:
         signal, headline = "hold", "Hold if you can store it"
-        reason = f"Today's price is {((1 - latest / avg30)) * 100:.1f}% below the 30-day average."
+        reason = f"The latest recorded price is {((1 - latest / avg30)) * 100:.1f}% below the 30-day average."
         if momentum > 0:
             reason += " The last 7 days show a recovery."
     else:
@@ -97,4 +142,7 @@ def get_advisory(crop_id: str) -> dict:
         "currency": data["currency"],
         "unit": data["unit"],
         "disclaimer": DISCLAIMER,
+        "data_date": max(row["date"] for row in data["records"] if row["crop_id"] == crop_id),
+        "source": data.get("note", "Bundled development sample dataset"),
+        "is_sample": True,
     }

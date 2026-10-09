@@ -36,7 +36,7 @@ export default function MarketAdvisory() {
     <>
       <div className="page-head">
         <h1>Sell or hold?</h1>
-        <p>Pick a crop to see how today's price compares with the last 30 days and where it is cheapest or dearest.</p>
+        <p>Pick a crop to compare its latest available record with recent trends and markets.</p>
       </div>
       <Alert>{error}</Alert>
       <div className="grid" style={{ marginBottom: "1.5rem" }}>
