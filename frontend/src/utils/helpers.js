@@ -15,6 +15,10 @@ export function errorMessage(error, fallback = "Something went wrong. Try again.
   const detail = error?.response?.data?.detail;
   if (typeof detail === "string") return detail;
   if (Array.isArray(detail) && detail[0]?.msg) return detail.map((d) => d.msg).join(". ");
-  if (error?.message === "Network Error") return "Cannot reach the server. Check your connection and that the backend is running.";
+  if (!error?.response && (error?.request || error?.message === "Network Error")) {
+    return "Cannot reach the server. Check your connection and that the backend is running.";
+  }
+  if (error?.response) return `The server returned HTTP ${error.response.status}. Please try again.`;
+
   return fallback;
 }

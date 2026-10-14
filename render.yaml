@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: ai-crop-advisory-backend
+    env: python
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: CORS_ORIGINS
+        value: https://ai-crop-advisory-ochre.vercel.app,http://localhost:5173,http://127.0.0.1:5173
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DB
+        value: crop_advisory
+      - key: SECRET_KEY
+        generateValue: true
+      - key: MAX_UPLOAD_MB
+        value: "8"

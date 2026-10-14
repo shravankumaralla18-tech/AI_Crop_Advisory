@@ -1,5 +1,15 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
+import sys
+
+# Ensure both backend directory and repo root are on sys.path
+_app_dir = Path(__file__).resolve().parent
+_backend_dir = _app_dir.parent
+_repo_dir = _backend_dir.parent
+for p in (_backend_dir, _repo_dir):
+    p_str = str(p)
+    if p_str not in sys.path:
+        sys.path.insert(0, p_str)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -28,7 +38,8 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()],
+    allow_origins=settings.cors_origins_list,
+    allow_origin_regex=r"^https://.*\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -44,6 +55,13 @@ for module in (auth, user, crop, disease, market, advisory):
 @app.get("/api/health", tags=["Health"])
 async def health():
     return {"status": "ok"}
+
+
+@app.get("/health", tags=["Health"])
+async def root_health():
+    return {"status": "ok"}
+
+
 @app.get("/")
 async def root():
     return {"status": "ok", "message": "AI Crop Advisory API is running"}

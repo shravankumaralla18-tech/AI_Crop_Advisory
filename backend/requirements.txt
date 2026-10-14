@@ -12,3 +12,5 @@ pytest>=8.0
 # Inference runtime for the disease model (shared with ai-model)
 -r ../ai-model/requirements.txt
 pymongo[srv]
+dnspython>=2.6
+

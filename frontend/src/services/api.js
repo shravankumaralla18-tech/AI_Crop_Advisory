@@ -12,6 +12,17 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (error) => {
+    const method = error.config?.method?.toUpperCase() || "REQUEST";
+    const url = `${error.config?.baseURL || ""}${error.config?.url || ""}`;
+    if (!error.response) {
+      console.error(
+        `[API] No response from ${method} ${url}. Check backend availability, network access, and whether CORS allows ${window.location.origin}.`,
+        error
+      );
+    } else {
+      console.error(`[API] HTTP ${error.response.status} from ${method} ${url}`, error.response.data);
+    }
+
     const onAuthPage = ["/login", "/register"].includes(window.location.pathname);
     if (error.response?.status === 401 && !onAuthPage) {
       localStorage.removeItem(TOKEN_KEY);
