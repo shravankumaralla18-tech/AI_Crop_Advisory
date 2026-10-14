@@ -44,3 +44,6 @@ for module in (auth, user, crop, disease, market, advisory):
 @app.get("/api/health", tags=["Health"])
 async def health():
     return {"status": "ok"}
+@app.get("/")
+async def root():
+    return {"status": "ok", "message": "AI Crop Advisory API is running"}
