@@ -11,3 +11,4 @@ pillow>=10.3
 pytest>=8.0
 # Inference runtime for the disease model (shared with ai-model)
 -r ../ai-model/requirements.txt
+pymongo[srv]
